@@ -1,0 +1,45 @@
+name: Vérification des prix CardTide
+
+on:
+  schedule:
+    # Toutes les 6 heures (heure UTC) : 00h, 06h, 12h, 18h.
+    # Ajuste selon tes besoins et le quota de ton fournisseur de données (voir README).
+    - cron: "0 */6 * * *"
+  workflow_dispatch: {}  # permet de lancer le workflow à la main depuis l'onglet "Actions"
+
+permissions:
+  contents: write  # nécessaire pour que le workflow puisse commit le nouvel historique
+
+jobs:
+  check-prices:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+
+      - name: Lancer les tests
+        run: python -m pytest
+
+      - name: Exécuter CardTide
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_FREE_CHAT_ID: ${{ secrets.TELEGRAM_FREE_CHAT_ID }}
+          TELEGRAM_PREMIUM_CHAT_ID: ${{ secrets.TELEGRAM_PREMIUM_CHAT_ID }}
+          PRICE_API_KEY: ${{ secrets.PRICE_API_KEY }}
+          PRICE_API_BASE_URL: ${{ secrets.PRICE_API_BASE_URL }}
+        run: python main.py
+
+      - name: Sauvegarder l'historique mis à jour
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: mise à jour automatique de l'historique des prix"
+          file_pattern: "data/price_history.json"
